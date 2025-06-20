@@ -1,0 +1,65 @@
+--- Model Status Report (2025-06-20 16:45:15) ---
+
+No model stats available.
+--- Model Status Report (2025-06-20 16:47:31) ---
+
+Model: gemini-2.0-flash
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemini-2.0-flash-lite
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemini-2.0-flash-preview-image-generation
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemini-2.5-flash
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemini-2.5-flash-lite-preview-06-17
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemini-2.5-flash-preview-04-17
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemini-2.5-flash-preview-05-20
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemma-3-12b-it
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemma-3-1b-it
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemma-3-27b-it
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemma-3-4b-it
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
+Model: gemma-3n-e4b-it
+  - Available Keys: 0
+  - Unavailable Keys: 0
+  - Requests (Last 30 mins): 0
+
