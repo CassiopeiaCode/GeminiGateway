@@ -4,6 +4,8 @@
 
 该项目通过智能的密钥轮换、自动测试和状态监控机制，最大限度地提高 API 请求的成功率，并在正确认证后绕过速率限制。
 
+[Deep Wiki](https://deepwiki.com/CassiopeiaCode/GeminiGateway)
+
 ## ✨ 核心功能
 
 ### 代理与负载均衡
