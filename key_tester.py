@@ -24,15 +24,18 @@ def test_key(key_value, model_name):
     url = KEY_TESTER_DEFAULT_TEST_URL.format(model_name=model_name)
     headers = {"x-goog-api-key": key_value, "Content-Type": "application/json"}
     payload = {"contents": [{"parts": [{"text": "Hello, world!"}]}]}
-    request_kwargs = {
-        "headers": headers,
-        "data": json.dumps(payload),
-    }
-    if isinstance(PROXY, str):
-        request_kwargs["proxies"] = {"http": PROXY, "https": PROXY}
+    if PROXY:
+        proxies = {
+            "http": PROXY,
+            "https": PROXY,
+        }
+    else:
+        proxies = None
 
     try:
-        response = requests.post(url, **request_kwargs)
+        response = requests.post(
+            url, headers=headers, data=json.dumps(payload), proxies=proxies
+        )
         return response.status_code
     except Exception as e:
         print(f"测试密钥时发生错误 {key_value[:5]}... 模型 {model_name}: {e}")
@@ -88,18 +91,15 @@ def run_key_tester():
                         needs_test = True
 
                 if needs_test:
-                    # print(
-                    #     f"  正在测试密钥 {key_value[:5]}... 在模型 {model_name} 上的状态..."
-                    # )
+                    print(
+                        f"  正在测试密钥 {key_value[:5]}... 在模型 {model_name} 上的状态..."
+                    )
                     status_code = test_key(key_value, model_name)
                     if status_code is not None:
-                        update_key_status_in_db(
-                            key_id, model_name, status_code, source="key_tester"
-                        )
-                        # print(f"    -> 测试完成，状态码: {status_code}")
+                        update_key_status_in_db(key_id, model_name, status_code, source='key_tester')
+                        print(f"    -> 测试完成，状态码: {status_code}")
                     else:
-                        ...
-                        # print(f"    -> 测试失败。")
+                        print(f"    -> 测试失败。")
                 # else:
                 #     print(f"  密钥 {key_value[:5]}... 在模型 {model_name} 上无需测试，下次测试时间: {model_status['next_test_time']}")
 

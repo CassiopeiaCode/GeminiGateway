@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify, make_response, Response, stream_with_
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 from datetime import datetime, timedelta
 import config  # 导入配置文件
+from flask_cors import CORS
 from database import (
     get_successful_key_count,
     update_key_status_in_db,
@@ -16,6 +17,7 @@ from rate_limiter import rate_limiter
 
 app = Flask(__name__)
 
+CORS(app)
 # 从config.py导入配置
 AUTH_KEY = config.AUTH_KEY
 MAX_RETRIES = config.MAX_RETRIES
@@ -168,17 +170,22 @@ def _execute_proxy_request(subpath, key_value):
     new_headers["x-goog-api-key"] = key_value
     new_headers["host"] = "generativelanguage.googleapis.com"
 
-    request_kwargs = {
-        "method": request.method,
-        "url": upstream_url,
-        "headers": new_headers,
-        "data": request.data,
-        "stream": True,
-    }
-    if isinstance(config.PROXY, str):
-        request_kwargs["proxies"] = {"http": config.PROXY, "https": config.PROXY}
+    if config.PROXY:
+        proxy = {
+            "http": config.PROXY,
+            "https": config.PROXY,
+        }
+    else:
+        proxy = None
 
-    response = requests.request(**request_kwargs)
+    response = requests.request(
+        method=request.method,
+        url=upstream_url,
+        headers=new_headers,
+        data=request.data,
+        stream=True,
+        proxies=proxy,
+    )
     return response
 
 

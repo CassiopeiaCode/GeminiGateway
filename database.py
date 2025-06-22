@@ -19,7 +19,7 @@ def get_db_connection():
 
 def calculate_next_test_time(status_code):
     """Calculates the next test time based on the HTTP status code."""
-    now = datetime.now()
+    now = datetime.utcnow()
     if status_code == 200:
         return now + timedelta(hours=config.TEST_INTERVAL_200_STATUS_HOURS)
     elif status_code == 403:
@@ -105,7 +105,6 @@ def get_available_key_from_db(model_name):
         return None
 
     try:
-        now = datetime.now().isoformat()
         # First, try to get a key with status 200
         cursor = conn.execute(
             """
@@ -154,19 +153,15 @@ def update_key_status_in_db(key_id, model_name, status_code, source='unknown'):
     if conn is None:
         return
 
-    now = datetime.now()
-    now_iso = now.isoformat()
+    now = datetime.utcnow()
+    now_str = now.strftime('%Y-%m-%d %H:%M:%S')
 
     try:
         with conn:
             if status_code == 200:
-                # 成功时，按正常逻辑更新
                 next_test_time = calculate_next_test_time(status_code)
-                next_test_iso = next_test_time.isoformat()
             else:
-                # 失败时，根据来源应用不同的重试逻辑
                 if source == 'proxy_service':
-                    # 代理服务失败时，检查当前的重试间隔
                     cursor = conn.execute(
                         "SELECT next_test_time FROM key_model_status WHERE key_id = ? AND model_name = ?",
                         (key_id, model_name),
@@ -174,23 +169,23 @@ def update_key_status_in_db(key_id, model_name, status_code, source='unknown'):
                     current_status = cursor.fetchone()
                     
                     if current_status and current_status["next_test_time"]:
-                        current_next_test_time = datetime.fromisoformat(current_status["next_test_time"])
+                        try:
+                            current_next_test_time = datetime.strptime(current_status["next_test_time"], '%Y-%m-%d %H:%M:%S')
+                        except (ValueError, TypeError):
+                             current_next_test_time = datetime.fromisoformat(current_status["next_test_time"])
+
                         retry_interval_seconds = (current_next_test_time - now).total_seconds()
 
                         if retry_interval_seconds > 300: # 5 minutes
-                            # 如果间隔大于5分钟，则设置为5分钟后重试
                             next_test_time = now + timedelta(minutes=5)
                         else:
-                            # 否则，保持原来的时间
                             next_test_time = current_next_test_time
                     else:
-                        # 如果没有记录，则按常规计算
                         next_test_time = calculate_next_test_time(status_code)
                 else:
-                    # 对于其他来源（如 key_tester），保持原有的错误处理逻辑
                     next_test_time = calculate_next_test_time(status_code)
-                
-                next_test_iso = next_test_time.isoformat()
+            
+            next_test_str = next_test_time.strftime('%Y-%m-%d %H:%M:%S')
 
             conn.execute(
                 """
@@ -198,9 +193,9 @@ def update_key_status_in_db(key_id, model_name, status_code, source='unknown'):
                 SET status_code = ?, test_count = test_count + 1, last_tested = ?, next_test_time = ?, updated_at = ?
                 WHERE key_id = ? AND model_name = ?
                 """,
-                (status_code, now_iso, next_test_iso, now_iso, key_id, model_name),
+                (status_code, now_str, next_test_str, now_str, key_id, model_name),
             )
-    except sqlite3.Error as e:
+    except Exception as e:
         print(f"Failed to update key {key_id} status for model '{model_name}': {e}")
     finally:
         if conn:
@@ -219,10 +214,10 @@ def log_request_details(
         with conn:
             conn.execute(
                 """
-                INSERT INTO request_logs (key_id, model_name, status_code, request_path, response_time_ms)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO request_logs (key_id, model_name, status_code, request_path, response_time_ms, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (key_id, model_name, status_code, request_path, response_time_ms),
+                (key_id, model_name, status_code, request_path, response_time_ms, datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')),
             )
     except sqlite3.Error as e:
         print(f"Failed to log request: {e}")
@@ -325,10 +320,10 @@ def get_recent_requests_count():
         return 0
 
     try:
-        twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
+        twenty_four_hours_ago = (datetime.utcnow() - timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
         cursor = conn.execute(
             "SELECT COUNT(*) FROM request_logs WHERE created_at >= ?",
-            (twenty_four_hours_ago.isoformat(),),
+            (twenty_four_hours_ago,),
         )
         count = cursor.fetchone()[0]
         return count
@@ -369,7 +364,7 @@ def get_model_aggregated_stats():
             }
 
         # Get request counts for the last 30 minutes per model
-        thirty_minutes_ago = (datetime.now() - timedelta(minutes=30)).isoformat()
+        thirty_minutes_ago = (datetime.utcnow() - timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M:%S')
         cursor = conn.execute(
             """
             SELECT
@@ -406,8 +401,8 @@ def cleanup_old_logs():
 
     try:
         threshold_date = (
-            datetime.now() - timedelta(days=config.LOG_CLEANER_INTERVAL_SECONDS / 86400)
-        ).isoformat()
+            datetime.utcnow() - timedelta(days=config.LOG_CLEANER_INTERVAL_SECONDS / 86400)
+        ).strftime('%Y-%m-%d %H:%M:%S')
         with conn:
             cursor = conn.execute(
                 "DELETE FROM request_logs WHERE created_at < ?", (threshold_date,)
@@ -432,7 +427,7 @@ def add_banned_ip(ip_address):
         with conn:
             conn.execute(
                 "INSERT OR IGNORE INTO banned_ips (ip_address, timestamp) VALUES (?, ?)",
-                (ip_address, datetime.now()),
+                (ip_address, datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')),
             )
     except sqlite3.Error as e:
         print(f"Failed to add banned IP {ip_address}: {e}")
@@ -467,7 +462,7 @@ def get_all_banned_ips():
         cursor = conn.execute("SELECT ip_address, timestamp FROM banned_ips")
         # Return a dictionary of {ip: timestamp}
         return {
-            row["ip_address"]: datetime.fromisoformat(row["timestamp"])
+            row["ip_address"]: datetime.strptime(row["timestamp"], '%Y-%m-%d %H:%M:%S')
             for row in cursor.fetchall()
         }
     except sqlite3.Error as e:
