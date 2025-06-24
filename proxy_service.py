@@ -71,6 +71,7 @@ def _authenticate_request():
 def _check_key_availability(model):
     """检查针对特定模型的可用密钥数量并根据策略决定是否拒绝请求。"""
     successful_key_count = get_successful_key_count(model)
+    print("Successful key", successful_key_count)
     reject_request = False
     if successful_key_count < KEY_AVAILABILITY_THRESHOLD_LOW:
         reject_request = True
@@ -141,9 +142,13 @@ def _handle_sse_stream(response, response_headers):
                 if precheck_done:
                     break
 
-        if event_count < 2:
+        # Check for finishReason if event count is low
+        full_response_str = (b''.join(buffered_events_list) + buffer).decode('utf-8', errors='ignore')
+        has_finish_reason_stop = '"finishReason": "STOP"' in full_response_str
+
+        if event_count < 2 and not (len(full_response_str) > 3 and has_finish_reason_stop):
             raise SSEPrecheckError(
-                f"SSE pre-check failed: Insufficient events received. {b''.join(buffered_events_list).decode('utf-8',errors='ignore')}--{buffer.decode('utf-8',errors='ignore')}"
+                f"SSE pre-check failed: Insufficient events and no valid finish reason. Response: {full_response_str}"
             )
 
         for event in buffered_events_list:
@@ -249,7 +254,9 @@ def handle_request(subpath):
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)
             status_code = response.status_code
 
-            update_key_status_in_db(key_id, model_name, status_code, source='proxy_service')
+            update_key_status_in_db(
+                key_id, model_name, status_code, source="proxy_service"
+            )
             log_request_details(
                 key_id, model_name, status_code, request.path, response_time_ms
             )
@@ -276,7 +283,9 @@ def handle_request(subpath):
             end_time = datetime.now()
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)
             print(f"Request/SSE error for key {key_id}: {e}")
-            update_key_status_in_db(key_id, model_name, 500, source='proxy_service')  # Mark key as faulty
+            update_key_status_in_db(
+                key_id, model_name, 500, source="proxy_service"
+            )  # Mark key as faulty
             log_request_details(key_id, model_name, 500, request.path, response_time_ms)
             continue  # Retry with a new key
 
@@ -286,7 +295,9 @@ def handle_request(subpath):
             print(
                 f"An unexpected error occurred for key {key_id}: {e}\n{traceback.format_exc()}"
             )
-            update_key_status_in_db(key_id, model_name, 500, source='proxy_service')  # Mark key as faulty
+            update_key_status_in_db(
+                key_id, model_name, 500, source="proxy_service"
+            )  # Mark key as faulty
             log_request_details(key_id, model_name, 500, request.path, response_time_ms)
             continue  # Retry with a new key
 
